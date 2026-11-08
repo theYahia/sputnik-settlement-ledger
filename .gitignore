@@ -1,0 +1,8 @@
+node_modules/
+build/
+out/
+*.wasm
+.near-credentials/
+neardev/
+*.log
+.DS_Store

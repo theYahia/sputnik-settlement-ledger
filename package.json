@@ -1,0 +1,31 @@
+{
+  "name": "sputnik-settlement-ledger",
+  "version": "0.1.0",
+  "description": "Record obligations on-chain, compute net positions, compile them into a single Sputnik DAO proposal, and emit a re-verifiable report.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "bin": {
+    "ssl": "./src/cli/index.ts"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.contract.json",
+    "cli": "node src/cli/index.ts",
+    "build:contract": "node scripts/build-contract.mjs src/contract/registry.ts build/registry.wasm",
+    "build:token": "node scripts/build-contract.mjs src/contract/fungible-token.ts build/ledger-token.wasm",
+    "build:bundle": "node scripts/build-contract.mjs src/contract/registry.ts build/registry.wasm --bundle-only",
+    "test:sandbox": "node --test tests/sandbox/"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "fast-check": "^3.23.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "near-sdk-js": "^2.0.0"
+  }
+}
