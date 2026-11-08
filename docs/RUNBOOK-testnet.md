@@ -14,12 +14,15 @@ Record every hash you produce in the claims table at the end of `README.md`.
 - Node LTS.
 
 ```bash
-npm ci --ignore-scripts   # near-sdk-js post-install downloads its toolchain
+npm ci                    # Linux/macOS: near-sdk-js post-install downloads its toolchain
 npm test
 npm run typecheck
 npm run build:contract    # build/registry.wasm
 npm run build:token       # build/ledger-token.wasm
 ```
+
+On Windows the SDK install has no toolchain to fetch, so use
+`npm install --ignore-scripts` there; only `npm run build:bundle` works locally.
 
 ## 1. Accounts
 

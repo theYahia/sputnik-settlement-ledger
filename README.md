@@ -24,7 +24,7 @@ obligations → close (ledger hash) → quote (net positions) → proposal (ft_t
 Requires Node >= 22.18 (native TypeScript execution) and nothing else.
 
 ```bash
-npm install --ignore-scripts
+npm install --ignore-scripts   # Windows: the SDK toolchain is Linux/macOS-only
 npm test                 # 54 tests: invariants, contract logic, golden proposal, CLI, reports
 npm run typecheck        # app + contract typecheck
 
