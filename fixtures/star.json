@@ -1,0 +1,36 @@
+{
+  "periodId": "2026-Q4-star",
+  "tokenId": "ledger-token.testnet",
+  "decimals": 18,
+  "note": "Treasury pays four working groups and nothing flows back. Netting cannot help here; this fixture exists to prove the tool says so.",
+  "obligations": [
+    {
+      "id": "ob-01",
+      "from": "treasury.ledger-dao.testnet",
+      "to": "design.ledger-dao.testnet",
+      "amount": "1200000000000000000000",
+      "memo": "design retainer"
+    },
+    {
+      "id": "ob-02",
+      "from": "treasury.ledger-dao.testnet",
+      "to": "devrel.ledger-dao.testnet",
+      "amount": "800000000000000000000",
+      "memo": "devrel retainer"
+    },
+    {
+      "id": "ob-03",
+      "from": "treasury.ledger-dao.testnet",
+      "to": "infra.ledger-dao.testnet",
+      "amount": "450000000000000000000",
+      "memo": "infra retainer"
+    },
+    {
+      "id": "ob-04",
+      "from": "treasury.ledger-dao.testnet",
+      "to": "research.ledger-dao.testnet",
+      "amount": "300000000000000000000",
+      "memo": "research retainer"
+    }
+  ]
+}
