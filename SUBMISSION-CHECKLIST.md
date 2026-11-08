@@ -9,8 +9,8 @@ explicit confirmation.
 - [ ] LICENSE present (MIT) — `LICENSE`.
 - [ ] Project name collision checked: `sputnik-settlement-ledger` had no GitHub name match on
       2026-11-08.
-- [ ] No rejected wording anywhere: search for `73%`, `minimal set`, `Trezu API`, `business`
-      in the repo and in the repository description.
+- [ ] No rejected wording anywhere (run the audit command below; it is written so it does not
+      match its own text).
 - [ ] Testnet runbook executed and its hashes recorded in the claims table
       (`docs/RUNBOOK-testnet.md`, `README.md`). **[gate: deploy, spend]**
 - [ ] Demo video, in this order:
@@ -28,8 +28,10 @@ explicit confirmation.
 Run from the repository root; every match must be intentional and defensible:
 
 ```bash
-grep -rn "73%\|minimal set\|Trezu API" --include="*.ts" --include="*.md" --include="*.json" .
+grep -rnE "73[%]|minimal[ ]set|Trezu[ ]API|track: business" \
+  --include="*.ts" --include="*.md" --include="*.json" .
 ```
 
-Allowed phrasings: `reduced set`, `≤ n−1, greedy; exact minimization is NP-hard, out of scope`,
-`Trezu integration is out of scope; we export a CSV compatible with bulk payouts`.
+Expected result: no matches. Allowed phrasings: `reduced set`, `≤ n−1, greedy; exact
+minimization is NP-hard, out of scope`, `Trezu integration is out of scope; we export a CSV
+compatible with bulk payouts`.
