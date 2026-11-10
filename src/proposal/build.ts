@@ -86,7 +86,16 @@ export function buildProposal(periodId: string, ledgerHash: string, quoteResult:
   };
 }
 
-/** Serialized exactly as it is posted to `add_proposal`. */
+/**
+ * The exact `add_proposal` argument: Sputnik's ProposalInput has `description`
+ * and `kind` only, so the local `proposer` field is dropped.
+ */
+export function serializeAddProposalArgs(envelope: ProposalEnvelope): string {
+  const { description, kind } = envelope.proposal;
+  return JSON.stringify({ proposal: { description, kind } });
+}
+
+/** The full envelope, including the local `proposer` field. */
 export function serializeProposal(envelope: ProposalEnvelope): string {
   return JSON.stringify(envelope);
 }
@@ -121,3 +130,4 @@ function compareTransfers(a: Transfer, b: Transfer): number {
   if (a.to !== b.to) return a.to < b.to ? -1 : 1;
   return a.amount === b.amount ? 0 : a.amount < b.amount ? -1 : 1;
 }
+

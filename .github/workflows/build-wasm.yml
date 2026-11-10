@@ -1,0 +1,32 @@
+name: build-wasm
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build:contract
+      - run: npm run build:token
+      - run: ls -la build/*.wasm && sha256sum build/*.wasm
+      - run: npm install --no-save near-workspaces
+      - name: sandbox test
+        run: npm run test:sandbox 2>&1 | tee sandbox.log
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wasm
+          path: |
+            build/registry.wasm
+            build/ledger-token.wasm
+            sandbox.log

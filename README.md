@@ -25,7 +25,7 @@ Requires Node >= 22.18 (native TypeScript execution) and nothing else.
 
 ```bash
 npm install --ignore-scripts   # Windows: the SDK toolchain is Linux/macOS-only
-npm test                 # 54 tests: invariants, contract logic, golden proposal, CLI, reports
+npm test                 # 60 tests: invariants, contract logic, golden proposal, CLI, reports
 npm run typecheck        # app + contract typecheck
 
 node src/cli/index.ts quote --fixture fixtures/star.json
@@ -70,6 +70,7 @@ payouts are needed. The star fixture scores zero on both and the tool says so.
 | `npm test` | `tests/verify.test.ts` | substituting one record or flipping one dispute flag fails verification; an on-chain quote that drifts from the offline one fails |
 | `npm test` | `tests/report.test.ts` | one self-contained HTML file, Markdown twin, bulk-payout CSV, escaped memo text |
 | `npm test` | `tests/cli.test.ts` | record → dispute → close → quote → settle, plus `report` and `verify` exit codes end to end |
+| `npm test` | `tests/testnet-commands.test.ts` | the testnet command generator renames the fixture to your accounts, signs each record as its obligor, and `add_proposal` args are exactly `description` + `kind` |
 | `npm test` | `tests/ft.test.ts` | the demo token refuses transfers to accounts without `storage_deposit` |
 | `npm run build:bundle` | `build/registry.js` | the near-sdk-js bundle builds with the bindgen exporter (works on Windows; wasm link needs Linux) |
 | `npm run verify -- --rpc …` | `src/verify/verify.ts`, `src/chain/rpc.ts` | live contract hash and records match the local ledger and the offline quote |
@@ -180,6 +181,23 @@ Amounts are integers in the token's minimal units. No floating point touches the
 path. `record` also prints the equivalent `near-cli-rs` call, because the local mirror is a
 mirror, not the source of truth.
 
+## Built during NEAR HACKATHON
+
+Everything in this repository was written inside the hackathon window (2026-10-19 to 2026-11-14)
+by one person working with an AI coding assistant; a large share of the code and tests was
+AI-generated and then reviewed and run by the author. Libraries: `near-sdk-js` (contracts),
+`fast-check` (property tests), `typescript`, `@types/node`. No code from earlier projects.
+
+## NEAR's role
+
+- Named accounts are the signers of ledger records: each `record_obligation` is signed by the
+  obligor, so an entry is attributed, not an anonymous spreadsheet row.
+- The payout is a Sputnik `FunctionCall` proposal with all `ft_transfer` actions against one
+  NEP-141 contract, which makes the batch atomic.
+- The ledger hash frozen at `close_period` is written into the proposal description, so voters
+  and verifiers can tie the execution to the record.
+
 ## License
 
 MIT.
+

@@ -18,7 +18,7 @@ import {
   toObligations,
   type RegistryState,
 } from "../ledger/registry.ts";
-import { buildProposal, serializeProposal, type ProposalEnvelope } from "../proposal/build.ts";
+import { buildProposal, serializeAddProposalArgs, serializeProposal, type ProposalEnvelope } from "../proposal/build.ts";
 import { renderCsv, renderHtml, renderMarkdown, type ReportInput } from "../report/render.ts";
 import { verifyLedger } from "../verify/verify.ts";
 import { viewFunction } from "../chain/rpc.ts";
@@ -49,7 +49,7 @@ Offline ledger (local mirror of the on-chain registry, JSON file):
 Computation and artefacts:
   quote --fixture <file> [--json]
   quote --store <file> --period <id> [--json]
-  build-proposal --fixture <file> --dao <account> --token <account> [--proposer <account>] [--out <file>]
+  build-proposal --fixture <file> --dao <account> --token <account> [--proposer <account>] [--add-proposal-args] [--out <file>]
   report --fixture <file> --out-dir <dir> [--proposal <file>] [--tx <hash>] [--proposal-id <id>]
   verify --fixture <file> --expected <ledger-hash>
   verify --fixture <file> --store <file> --period <id>
@@ -203,7 +203,8 @@ function cmdBuildProposal(args: Args): number {
     tokenId: required(args, "token"),
     proposer: args.proposer ?? required(args, "dao"),
   });
-  const serialized = serializeProposal(envelope);
+  const serialized =
+    args["add-proposal-args"] === "true" ? serializeAddProposalArgs(envelope) : serializeProposal(envelope);
   if (args.out !== undefined) {
     writeFileSync(args.out, `${serialized}\n`, "utf8");
     print(`proposal written to ${args.out}`);
@@ -534,3 +535,4 @@ try {
     process.exitCode = 1;
   }
 }
+
