@@ -27,6 +27,21 @@ function tokenize(line) {
   return tokens;
 }
 
+async function accountExists(id) {
+  const response = await fetch("https://rpc.testnet.near.org", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "query",
+      params: { request_type: "view_account", finality: "final", account_id: id },
+    }),
+  });
+  const body = await response.json();
+  return body.error === undefined;
+}
+
 const [file, stage] = process.argv.slice(2);
 if (file === undefined || stage === undefined) {
   process.stderr.write("usage: node scripts/run-stage.mjs <commands-file> <stage>\n");
@@ -50,6 +65,11 @@ for (const line of lines) {
     continue;
   }
   if (!active || !line.startsWith("near ")) continue;
+  const created = /^near account create-account fund-myself (\S+) /.exec(line);
+  if (created !== null && (await accountExists(created[1]))) {
+    process.stdout.write(`\n--- skip: ${created[1]} already exists\n`);
+    continue;
+  }
   count += 1;
   process.stdout.write(`\n>>> [${count}] ${line}\n`);
   const [, ...args] = tokenize(line);
@@ -63,7 +83,7 @@ for (const line of lines) {
     process.exit(1);
   }
 }
-if (count === 0) {
+if (count === 0 && stage !== "accounts") {
   process.stderr.write(`no commands found for stage '${stage}'\n`);
   process.exit(2);
 }
