@@ -153,7 +153,7 @@ export function planTestnet(fixtureJson: string, options: TestnetOptions): Testn
   };
 
   const funded = `${options.prefix}.testnet`;
-  const contractBalance = options.contractBalance ?? "8 NEAR";
+  const contractBalance = options.contractBalance ?? "6.5 NEAR";
   const groupBalance = options.groupBalance ?? "0.3 NEAR";
   for (const account of [registry, token, ...accounts]) {
     const balance = account === registry || account === token ? contractBalance : groupBalance;
