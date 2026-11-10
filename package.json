@@ -18,7 +18,7 @@
     "build:contract": "node scripts/build-contract.mjs src/contract/registry.ts build/registry.wasm",
     "build:token": "node scripts/build-contract.mjs src/contract/fungible-token.ts build/ledger-token.wasm",
     "build:bundle": "node scripts/build-contract.mjs src/contract/registry.ts build/registry.wasm --bundle-only",
-    "test:sandbox": "node --test tests/sandbox/"
+    "test:sandbox": "node --test tests/sandbox/registry.sandbox.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
