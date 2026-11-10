@@ -25,7 +25,7 @@ export async function viewFunction(options: RpcViewOptions): Promise<unknown> {
     id: "settlement-ledger",
     method: "query",
     params: {
-      request_type: "call",
+      request_type: "call_function",
       finality: "final",
       account_id: options.contractId,
       method_name: options.methodName,

@@ -1,0 +1,134 @@
+{
+  "periodId": "2026-Q4-workgroups",
+  "tokenId": "token.sslhack26.testnet",
+  "decimals": 18,
+  "obligations": [
+    {
+      "id": "ob-1",
+      "from": "design.sslhack26.testnet",
+      "to": "infra.sslhack26.testnet",
+      "amount": "40000000000000000000",
+      "memo": "shared CI minutes, October"
+    },
+    {
+      "id": "ob-2",
+      "from": "infra.sslhack26.testnet",
+      "to": "design.sslhack26.testnet",
+      "amount": "30000000000000000000",
+      "memo": "landing page rework"
+    },
+    {
+      "id": "ob-3",
+      "from": "devrel.sslhack26.testnet",
+      "to": "design.sslhack26.testnet",
+      "amount": "55000000000000000000",
+      "memo": "conference booth assets"
+    },
+    {
+      "id": "ob-4",
+      "from": "design.sslhack26.testnet",
+      "to": "devrel.sslhack26.testnet",
+      "amount": "45000000000000000000",
+      "memo": "workshop co-hosting share"
+    },
+    {
+      "id": "ob-5",
+      "from": "events.sslhack26.testnet",
+      "to": "devrel.sslhack26.testnet",
+      "amount": "60000000000000000000",
+      "memo": "speaker travel advanced by devrel"
+    },
+    {
+      "id": "ob-6",
+      "from": "devrel.sslhack26.testnet",
+      "to": "events.sslhack26.testnet",
+      "amount": "35000000000000000000",
+      "memo": "venue deposit share"
+    },
+    {
+      "id": "ob-7",
+      "from": "research.sslhack26.testnet",
+      "to": "infra.sslhack26.testnet",
+      "amount": "50000000000000000000",
+      "memo": "indexer node hosting"
+    },
+    {
+      "id": "ob-8",
+      "from": "infra.sslhack26.testnet",
+      "to": "research.sslhack26.testnet",
+      "amount": "35000000000000000000",
+      "memo": "benchmark dataset licence"
+    },
+    {
+      "id": "ob-9",
+      "from": "ops.sslhack26.testnet",
+      "to": "research.sslhack26.testnet",
+      "amount": "45000000000000000000",
+      "memo": "treasury report commissioned"
+    },
+    {
+      "id": "ob-10",
+      "from": "research.sslhack26.testnet",
+      "to": "ops.sslhack26.testnet",
+      "amount": "20000000000000000000",
+      "memo": "bookkeeping fee share"
+    },
+    {
+      "id": "ob-11",
+      "from": "events.sslhack26.testnet",
+      "to": "ops.sslhack26.testnet",
+      "amount": "40000000000000000000",
+      "memo": "insurance paid by ops"
+    },
+    {
+      "id": "ob-12",
+      "from": "ops.sslhack26.testnet",
+      "to": "events.sslhack26.testnet",
+      "amount": "30000000000000000000",
+      "memo": "offsite catering share"
+    },
+    {
+      "id": "ob-13",
+      "from": "infra.sslhack26.testnet",
+      "to": "ops.sslhack26.testnet",
+      "amount": "25000000000000000000",
+      "memo": "hardware procurement handling"
+    },
+    {
+      "id": "ob-14",
+      "from": "ops.sslhack26.testnet",
+      "to": "infra.sslhack26.testnet",
+      "amount": "20000000000000000000",
+      "memo": "backup storage, October"
+    },
+    {
+      "id": "ob-15",
+      "from": "design.sslhack26.testnet",
+      "to": "research.sslhack26.testnet",
+      "amount": "25000000000000000000",
+      "memo": "user interview transcripts"
+    },
+    {
+      "id": "ob-16",
+      "from": "research.sslhack26.testnet",
+      "to": "events.sslhack26.testnet",
+      "amount": "30000000000000000000",
+      "memo": "panel logistics"
+    },
+    {
+      "id": "ob-17",
+      "from": "devrel.sslhack26.testnet",
+      "to": "infra.sslhack26.testnet",
+      "amount": "40000000000000000000",
+      "memo": "testnet faucet top-up"
+    },
+    {
+      "id": "ob-18",
+      "from": "events.sslhack26.testnet",
+      "to": "design.sslhack26.testnet",
+      "amount": "60000000000000000000",
+      "memo": "rebrand billed to events, scope contested",
+      "disputed": true
+    }
+  ]
+}

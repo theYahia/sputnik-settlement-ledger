@@ -1,120 +1,133 @@
-# Testnet runbook — stage 4
+# Testnet runbook
 
-Everything here touches a live network, so it is a **human gate**: the agent
-prepares the commands, a person runs them and confirms each result. Mainnet is
-never used; there is no spend beyond testnet faucet funds.
+Everything here touches a live network, so it is a **human gate**: the tooling
+prepares the commands, a person signs each transaction and confirms the result.
+Mainnet is never used; there is no spend beyond testnet funds.
 
-Record every hash you produce in the claims table at the end of `README.md`.
+This runbook is written for Windows PowerShell 5.1 (the machine the demo was built
+on) and works the same on Linux/macOS. Record every hash you produce in the claims
+table of `README.md`.
 
 ## 0. Prerequisites
 
-- Linux or macOS for the wasm build (the near-sdk-js toolchain ships wasi-sdk
-  for those platforms only). Windows can run everything else.
-- `near-cli-rs` (`near`) with a testnet key, funded through the faucet.
-- Node LTS.
+- Node >= 22.18, `near-cli-rs` (`near`) with a testnet key in the keychain and
+  roughly 15 NEAR on the owner account (DAO 6, registry and token accounts 6.5 each
+  by default; unused balance stays on the accounts).
+- On Windows use `npm.cmd` if script execution is restricted, and avoid `.ps1`
+  files: every helper here is a Node script.
+- JSON arguments are always passed through `file-args` (a file under `out/args/`).
+  Inline JSON breaks on PowerShell quoting.
+- PowerShell 5.1 `>` writes UTF-16. Use `--commands-out` instead of redirection.
+- The wasm toolchain is Linux/macOS only. The `build-wasm` GitHub Actions workflow
+  builds `build/registry.wasm` and `build/ledger-token.wasm`; download the artifact
+  into `build/`. Locally only `npm run build:bundle` works on Windows.
 
-```bash
-npm ci                    # Linux/macOS: near-sdk-js post-install downloads its toolchain
-npm test
-npm run typecheck
-npm run build:contract    # build/registry.wasm
-npm run build:token       # build/ledger-token.wasm
 ```
-
-On Windows the SDK install has no toolchain to fetch, so use
-`npm install --ignore-scripts` there; only `npm run build:bundle` works locally.
+npm.cmd install --ignore-scripts
+npm.cmd test
+npm.cmd run typecheck
+```
 
 ## 1. Generate the commands
 
-The ledger hash covers account names and obligation ids, so the fixture is
-renamed to your accounts first (ids become `ob-1`.. as the registry assigns
-them). The generator only prints commands; it signs nothing.
+The ledger hash covers account names and obligation ids, so the fixture is renamed
+to your accounts first. The generator only writes files; it signs nothing.
 
-```bash
-node scripts/testnet-commands.mjs --prefix <prefix> --owner <owner>.testnet \
-  --dao <name>.sputnikv2.testnet > out/commands.sh
+```
+node scripts/testnet-commands.mjs --prefix <prefix> --owner <owner>.testnet --dao <name>.sputnikv2.testnet --commands-out out/commands.txt
 ```
 
-It also writes `out/workgroups.<prefix>.json` and prints the expected ledger
-hash. Use that fixture (not `fixtures/workgroups.json`) for `build-proposal`,
-`report` and `verify` below. `<prefix>.testnet` must be a funded testnet account.
+It writes `out/commands.txt`, `out/args/*.json` and `out/workgroups.<prefix>.json`,
+and prints the expected ledger hash. Use that fixture (not `fixtures/workgroups.json`)
+for `build-proposal`, `report` and `verify`.
 
-Order in `out/commands.sh`: accounts, token deploy, `storage_deposit` for the DAO
-and the six groups (the step a plain bulk payout skips and then fails on), `mint`
-to the DAO, registry deploy, `create_period`, 17 `record_obligation` (each signed
-by its `from`), `dispute_obligation ob-18`, `close_period`, then the proposal
-steps. Run them one by one and keep each tx hash.
+Stages in `out/commands.txt`: `accounts`, `token`, `registry`, `obligations`,
+`dispute`, `close`, then the proposal steps. `storage_deposit` for the DAO and the
+six groups is part of `token` (the step a plain bulk payout skips and then fails on).
+Each `record_obligation` is signed by its `from` account.
 
-Registry owner: for the demo use your own account (`close_period` and
+Run a stage with:
+
+```
+node scripts/run-stage.mjs out/commands.txt <stage>
+```
+
+Do not rerun a failed stage as a whole (repeating `create-account` fails); run the
+remaining commands from the file one by one. `run-stage.mjs` skips accounts that
+already exist.
+
+Registry owner: for the demo it is your own account (`close_period` and
 `mark_settled` are owner-only; with the DAO as owner they would need their own
-proposals). Say so in the README as a simplification.
+proposals). This is a deliberate simplification.
 
 ## 2. DAO
 
-Sputnik factory on testnet is `sputnikv2.testnet`; the DAO becomes
-`<name>.sputnikv2.testnet`. Council = your account.
+The factory on testnet is `sputnikv2.testnet`; the DAO becomes
+`<name>.sputnikv2.testnet`. Council is your account only, vote threshold 1 of 1.
+The generator writes the arguments to `out/args/dao-create.json`:
 
-```bash
-ARGS=$(echo '{"config":{"name":"<name>","purpose":"settlement demo","metadata":""},"policy":["<owner>.testnet"]}' | base64 -w0)
-near contract call-function as-transaction sputnikv2.testnet create \
-  json-args "{\"name\":\"<name>\",\"args\":\"$ARGS\"}" \
-  prepaid-gas '150 Tgas' attached-deposit '6 NEAR' sign-as <owner>.testnet \
-  network-config testnet sign-with-keychain send
-near contract call-function as-read-only <name>.sputnikv2.testnet get_policy \
-  json-args {} network-config testnet now
+```
+near contract call-function as-transaction sputnikv2.testnet create file-args out/args/dao-create.json prepaid-gas '150 Tgas' attached-deposit '6 NEAR' sign-as <owner>.testnet network-config testnet sign-with-keychain send
 ```
 
-Note `proposal_bond` from `get_policy` (default 1 NEAR) and the vote threshold.
+Check `proposal_bond` (1 NEAR by default) and the threshold with `get_policy`.
+Views without arguments are easiest through RPC with `args_base64: e30=`.
 
 ## 3. Check the chain against the offline numbers
 
-```bash
-near contract call-function as-read-only registry.<prefix>.testnet quote_settlement \
-  json-args '{"period_id":"2026-Q4-workgroups"}' network-config testnet now
-near contract call-function as-read-only registry.<prefix>.testnet get_ledger_hash \
-  json-args '{"period_id":"2026-Q4-workgroups"}' network-config testnet now
+`out/args/period.json` is `{"period_id":"2026-Q4-workgroups"}`:
+
+```
+near contract call-function as-read-only registry.<prefix>.testnet get_ledger_hash file-args out/args/period.json network-config testnet now
+near contract call-function as-read-only registry.<prefix>.testnet quote_settlement file-args out/args/period.json network-config testnet now
 ```
 
-Expect `17 -> 4`, `mutuality 0.8960`, and the hash printed by the generator.
-The period id comes from the fixture: `2026-Q4-workgroups`.
+Expect `17 -> 4`, `mutuality 0.8960`, `ob-18` excluded, and the hash printed by the
+generator.
 
 ## 4. Proposal
 
-```bash
-node src/cli/index.ts build-proposal --fixture out/workgroups.<prefix>.json \
-  --dao <name>.sputnikv2.testnet --token token.<prefix>.testnet \
-  --proposer <owner>.testnet --out out/proposal.json
-node src/cli/index.ts build-proposal --fixture out/workgroups.<prefix>.json \
-  --dao <name>.sputnikv2.testnet --token token.<prefix>.testnet \
-  --proposer <owner>.testnet --add-proposal-args --out out/add-proposal.json
+```
+node src/cli/index.ts build-proposal --fixture out/workgroups.<prefix>.json --dao <name>.sputnikv2.testnet --token token.<prefix>.testnet --proposer <owner>.testnet --out out/proposal.json
+node src/cli/index.ts build-proposal --fixture out/workgroups.<prefix>.json --dao <name>.sputnikv2.testnet --token token.<prefix>.testnet --proposer <owner>.testnet --add-proposal-args --out out/add-proposal.json
 ```
 
 `out/add-proposal.json` is exactly the `add_proposal` argument
-(`{"proposal":{"description","kind"}}`); `out/proposal.json` is the full envelope
-for `report`. The generated `add_proposal` command attaches the bond (1 NEAR by
-default; match `get_policy`). The returned number is the proposal id.
+(`{"proposal":{"description","kind"}}`); `out/proposal.json` is the full envelope for
+`report`.
 
-`act_proposal {"id":<n>,"action":"VoteApprove"}` needs **300 Tgas**: the four
-`ft_transfer` calls run from the same transaction. With a one-member council the
-approval executes it; save the transaction hash.
+```
+near contract call-function as-transaction <name>.sputnikv2.testnet add_proposal file-args out/add-proposal.json prepaid-gas '100 Tgas' attached-deposit '1 NEAR' sign-as <owner>.testnet network-config testnet sign-with-keychain send
+```
+
+The returned number is the proposal id. Then write `{"id":<id>,"action":"VoteApprove"}`
+to `out/args/act.json` and approve; it needs **300 Tgas** because the four
+`ft_transfer` calls run from the same transaction:
+
+```
+near contract call-function as-transaction <name>.sputnikv2.testnet act_proposal file-args out/args/act.json prepaid-gas '300 Tgas' attached-deposit '0 NEAR' sign-as <owner>.testnet network-config testnet sign-with-keychain send
+```
+
+With a one-member council the approval executes the proposal. Save the transaction
+hash of this call as the execution hash.
 
 ## 5. Confirm
 
-`mark_settled` runs on the contract (the local `ssl settle` only updates an offline mirror):
+Regenerate the commands with the real ids so `out/args/NN-mark_settled.json` is
+filled in (do not rerun `act_proposal`):
 
-```bash
-near contract call-function as-transaction registry.<prefix>.testnet mark_settled \
-  json-args '{"period_id":"2026-Q4-workgroups","proposal_id":"<id>","tx_hash":"<execute tx hash>"}' \
-  prepaid-gas '100 Tgas' attached-deposit '0 NEAR' sign-as <owner>.testnet \
-  network-config testnet sign-with-keychain send
-
-node src/cli/index.ts verify --fixture out/workgroups.<prefix>.json \
-  --rpc https://rpc.testnet.near.org --contract registry.<prefix>.testnet \
-  --period 2026-Q4-workgroups
-
-node src/cli/index.ts report --fixture out/workgroups.<prefix>.json \
-  --out-dir out --proposal out/proposal.json --proposal-id <id> --tx <tx hash>
+```
+node scripts/testnet-commands.mjs --prefix <prefix> --owner <owner>.testnet --dao <name>.sputnikv2.testnet --proposal-id <id> --tx <execution tx hash> --commands-out out/commands.txt
 ```
 
-`verify` must print `OK`. Then check every group's `ft_balance_of` against the
-net positions and fill the claims table in `README.md`.
+`mark_settled` runs on the contract (the local `ssl settle` only updates an offline
+mirror). Run the `mark_settled` line from `out/commands.txt`, then:
+
+```
+node src/cli/index.ts verify --fixture out/workgroups.<prefix>.json --rpc https://rpc.testnet.near.org --contract registry.<prefix>.testnet --period 2026-Q4-workgroups
+node src/cli/index.ts report --fixture out/workgroups.<prefix>.json --out-dir out/report --proposal out/proposal.json --proposal-id <id> --tx <execution tx hash>
+```
+
+`verify` must print `OK`. Then check every group's `ft_balance_of` against the net
+positions (for the demo: `infra` 60, `research` 5, DAO 9935, others 0, in whole
+tokens) and fill the claims table in `README.md`.

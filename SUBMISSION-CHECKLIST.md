@@ -4,14 +4,14 @@ Human gates are marked **[gate]**. Nothing here is executed by an agent without
 explicit confirmation.
 
 - [ ] Re-read the live hackathon rules immediately before submitting (last check: 2026-11-08).
-- [ ] `npm test` green offline; `npm run typecheck` green. Both commands in `README.md`.
+- [x] `npm test` green offline (62/62, 2026-11-10); `npm run typecheck` green. Both commands in `README.md`.
 - [ ] Repository public before 2026-11-14T23:59Z. **[gate]**
 - [ ] LICENSE present (MIT) — `LICENSE`.
 - [ ] Project name collision checked: `sputnik-settlement-ledger` had no GitHub name match on
       2026-11-08.
 - [ ] No rejected wording anywhere (run the audit command below; it is written so it does not
       match its own text).
-- [ ] Testnet runbook executed and its hashes recorded in the claims table
+- [x] Testnet runbook executed and its hashes recorded in the claims table
       (`docs/RUNBOOK-testnet.md`, `README.md`). **[gate: deploy, spend]**
 - [ ] Demo video, in this order:
       1. star fixture → `quote` → `mutuality 0.0000`, `transfers k → k`, the advice line;

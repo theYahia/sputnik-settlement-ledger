@@ -24,8 +24,8 @@ obligations → close (ledger hash) → quote (net positions) → proposal (ft_t
 Requires Node >= 22.18 (native TypeScript execution) and nothing else.
 
 ```bash
-npm install --ignore-scripts   # Windows: the SDK toolchain is Linux/macOS-only
-npm test                 # 60 tests: invariants, contract logic, golden proposal, CLI, reports
+npm install --ignore-scripts   # Windows: the SDK toolchain is Linux/macOS-only (use npm.cmd if scripts are blocked)
+npm test                 # 62 tests: invariants, contract logic, golden proposal, CLI, reports
 npm run typecheck        # app + contract typecheck
 
 node src/cli/index.ts quote --fixture fixtures/star.json
@@ -72,6 +72,7 @@ payouts are needed. The star fixture scores zero on both and the tool says so.
 | `npm test` | `tests/cli.test.ts` | record → dispute → close → quote → settle, plus `report` and `verify` exit codes end to end |
 | `npm test` | `tests/testnet-commands.test.ts` | the testnet command generator renames the fixture to your accounts, signs each record as its obligor, and `add_proposal` args are exactly `description` + `kind` |
 | `npm test` | `tests/ft.test.ts` | the demo token refuses transfers to accounts without `storage_deposit` |
+| `npm test` | `tests/rpc.test.ts` | the RPC view request uses `call_function` and decodes the result |
 | `npm run build:bundle` | `build/registry.js` | the near-sdk-js bundle builds with the bindgen exporter (works on Windows; wasm link needs Linux) |
 | `npm run verify -- --rpc …` | `src/verify/verify.ts`, `src/chain/rpc.ts` | live contract hash and records match the local ledger and the offline quote |
 
@@ -128,15 +129,40 @@ contract uses to persist state.
 - **`settled on time` is narrow by design**: of the records naming an account, how many were
   not disputed at close. It says nothing about wall-clock time or payment order.
 
+## Live on testnet
+
+| What | Value |
+|---|---|
+| Owner and council | `sslhack26.testnet` |
+| DAO | `ssl.sputnikv2.testnet` (create tx [9RH8Zw…9tZxX](https://explorer.testnet.near.org/transactions/9RH8ZwEtULGjTMKuYEfXdGg5NCkekdhM6CDPBp59tZxX)) |
+| Registry | `registry.sslhack26.testnet`, period `2026-Q4-workgroups`, status `settled` |
+| Token | `token.sslhack26.testnet` (demo NEP-141, 18 decimals) |
+| Working groups | `design`, `devrel`, `events`, `infra`, `ops`, `research` under `.sslhack26.testnet` |
+| Ledger hash | `sha256:8877777c13978226e4eef1da3bed58195584587d48c87238a53b1781d2a70529` |
+| `add_proposal` (proposal id 0) | [5oAST2…8CkB](https://explorer.testnet.near.org/transactions/5oAST23Ynek2cBbet1Nu2fFfJTjkTCWMJWB5icaQ8CkB) |
+| `act_proposal` (execution) | [HFo8WF…7FJYf](https://explorer.testnet.near.org/transactions/HFo8WFQoMGfh62kKPqc5s8a2b3ztwu2nNtG7Nsp7FJYf) |
+| `mark_settled` | [4NoHHz…5ig4](https://explorer.testnet.near.org/transactions/4NoHHzvcpnw5myncoeTAaDWLzUSdJWMZDiiaTcoA5ig4) |
+| Result | 17 payouts reduced to 4; value moved 625 → 65 tokens; mutuality 0.8960; `ob-18` excluded |
+
+Re-run the check yourself (`fixtures/workgroups.sslhack26.json` is the fixture renamed to these accounts):
+
+```
+node src/cli/index.ts verify --fixture fixtures/workgroups.sslhack26.json --rpc https://rpc.testnet.near.org --contract registry.sslhack26.testnet --period 2026-Q4-workgroups
+```
 ## Status and what remains unproven
 
-- Offline: complete and green (`npm test`, `npm run typecheck`).
-- Wasm build and the sandbox run need Linux/macOS: `npm run build:contract` and
-  `npm run test:sandbox` (see `docs/RUNBOOK-testnet.md`). On Windows only the JS bundle is
-  built (`npm run build:bundle`).
-- Testnet deployment, the DAO proposal, and the executed transaction are **pending a human
-  gate**; the runbook is the checklist. Until they exist, the claims table below has no tx
-  hashes, and this README does not pretend otherwise.
+- Offline: complete and green (`npm test` 62/62, `npm run typecheck`).
+- Testnet: the full flow ran on `sslhack26.testnet` (see "Live on testnet"): 18 obligations
+  recorded by their obligors, `ob-18` disputed, period closed, one DAO proposal executed,
+  `mark_settled` written, `verify` prints `OK` against the deployed registry.
+- The wasm was built in GitHub Actions (`build-wasm` workflow, sandbox run 4/4), because the
+  near-sdk-js toolchain does not run on the author's Windows machine. On Windows only the JS
+  bundle builds locally (`npm run build:bundle`).
+- Simplification: the registry owner is a normal account, not the DAO. With the DAO as owner,
+  `close_period` and `mark_settled` would each need their own proposal.
+- The DAO council is a single account with a 1-of-1 threshold, so one approval executes the
+  proposal. Multi-member voting is not exercised here.
+- Testnet only. Nothing was deployed or tested on mainnet.
 - **Demand is unproven.** No interviews were conducted. The share of mutual obligations inside
   real DAOs is unmeasured — which is exactly why the product reports when netting is useless.
 - **An off-chain competitor** (Splitwise / Settle Up) solves the reconciliation problem more
@@ -158,7 +184,8 @@ contract uses to persist state.
 | The registry rejects non-member records | `src/ledger/registry.ts` | `tests/registry.test.ts` | — |
 | The batch is atomic for one token contract | `src/proposal/build.ts` | `tests/proposal.golden.test.ts` (single receiver for all actions) | — |
 | `ft_transfer` fails without `storage_deposit` | `src/ft/token.ts` | `tests/ft.test.ts` | — |
-| Verification passes against the deployed contract | `src/verify/verify.ts` | pending stage 4 | — |
+| Verification passes against the deployed contract | `src/verify/verify.ts` | `verify --rpc` printed `OK` on testnet | `mark_settled` [4NoHHz…5ig4](https://explorer.testnet.near.org/transactions/4NoHHzvcpnw5myncoeTAaDWLzUSdJWMZDiiaTcoA5ig4) |
+| The executed payout matches the quote (17 → 4) | `src/proposal/build.ts` | `ft_balance_of`: infra 60, research 5, DAO 9935 (whole tokens) | `act_proposal` [HFo8WF…7FJYf](https://explorer.testnet.near.org/transactions/HFo8WFQoMGfh62kKPqc5s8a2b3ztwu2nNtG7Nsp7FJYf) |
 
 ## Commands
 
