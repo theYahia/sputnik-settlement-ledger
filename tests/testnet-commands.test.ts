@@ -58,6 +58,7 @@ test("every recipient gets storage_deposit before the proposal", () => {
   assert.ok(methods.lastIndexOf("storage_deposit") < methods.indexOf("add_proposal"));
   const act = plan.commands.find((c) => c.method === "act_proposal");
   assert.ok(act?.text.includes("300 Tgas"));
+  assert.ok(act?.text.includes("file-args"));
 });
 
 test("invalid prefix is rejected", () => {
@@ -76,4 +77,20 @@ test("add_proposal args contain exactly description and kind", () => {
   const parsed = JSON.parse(serializeAddProposalArgs(envelope)) as { proposal: Record<string, unknown> };
   assert.deepEqual(Object.keys(parsed), ["proposal"]);
   assert.deepEqual(Object.keys(parsed.proposal), ["description", "kind"]);
+});
+
+test("args files hold the exact JSON of each call and commands reference them", () => {
+  const plan = planTestnet(FIXTURE, OPTIONS);
+  const withFiles = plan.commands.filter((c) => c.argsFile !== null);
+  assert.ok(withFiles.length > 0);
+  const paths = new Set<string>();
+  for (const command of withFiles) {
+    assert.ok(command.argsFile !== null);
+    assert.equal(command.argsFile.content, command.args);
+    assert.ok(command.text.includes(`file-args ${command.argsFile.path}`));
+    assert.ok(!paths.has(command.argsFile.path));
+    paths.add(command.argsFile.path);
+    JSON.parse(command.argsFile.content);
+  }
+  assert.ok(!plan.commands.some((c) => c.text.includes("$(")));
 });

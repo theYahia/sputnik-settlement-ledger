@@ -6,7 +6,7 @@ import path from "node:path";
 import { planTestnet } from "../src/testnet/commands.ts";
 
 const USAGE = `Usage: node scripts/testnet-commands.mjs --prefix <p> --owner <account> --dao <account>
-         [--fixture fixtures/workgroups.json] [--out-dir out] [--proposal-id <n>] [--tx <hash>]
+         [--fixture fixtures/workgroups.json] [--out-dir out] [--proposal-id <n>] [--tx <hash>] [--bond "1 NEAR"]
 
 Writes <out-dir>/workgroups.<prefix>.json (fixture renamed to your accounts, ids as the
 registry assigns them) and prints the commands in runbook order.
@@ -36,11 +36,18 @@ try {
     dao: args.dao,
     ...(args["proposal-id"] === undefined ? {} : { proposalId: args["proposal-id"] }),
     ...(args.tx === undefined ? {} : { txHash: args.tx }),
+    ...(args.bond === undefined ? {} : { proposalBond: args.bond }),
   });
 
   mkdirSync(outDir, { recursive: true });
   const fixtureOut = path.join(outDir, `workgroups.${args.prefix}.json`);
   writeFileSync(fixtureOut, plan.fixtureJson, "utf8");
+
+  for (const command of plan.commands) {
+    if (command.argsFile === null) continue;
+    mkdirSync(path.dirname(command.argsFile.path), { recursive: true });
+    writeFileSync(command.argsFile.path, command.argsFile.content, "utf8");
+  }
 
   const lines = [
     `# fixture for this deployment: ${fixtureOut}`,

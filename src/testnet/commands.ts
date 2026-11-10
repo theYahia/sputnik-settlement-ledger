@@ -4,7 +4,10 @@ import { quote } from "../settlement/quote.ts";
 
 /**
  * Generates the `near-cli-rs` commands for the testnet runbook. It only builds
- * strings: nothing here signs or sends anything.
+ * strings and argument files: nothing here signs or sends anything.
+ *
+ * JSON arguments are written to files and passed with `file-args`, so the same
+ * commands work in PowerShell, cmd and bash without any quoting rules.
  *
  * The ledger hash covers account names and obligation ids, so a fixture cannot
  * simply be replayed under a different account prefix. The fixture is rewritten
@@ -14,11 +17,11 @@ import { quote } from "../settlement/quote.ts";
  */
 
 const FIXTURE_ACCOUNT_SUFFIX = ".ledger-dao.testnet";
-const FIXTURE_TOKEN = "ledger-token.testnet";
 const PREFIX_PATTERN = /^[a-z0-9]+([-_][a-z0-9]+)*$/;
 const MAX_PREFIX_LENGTH = 40;
 const STORAGE_DEPOSIT = "0.00125 NEAR";
 const MINT_AMOUNT = "10000000000000000000000";
+const ARGS_DIR = "out/args";
 
 export interface TestnetOptions {
   /** Funded testnet account; every account below is a subaccount of it. */
@@ -29,16 +32,28 @@ export interface TestnetOptions {
   readonly dao: string;
   readonly proposalId?: string;
   readonly txHash?: string;
+  /** Attached to `add_proposal`; must match `proposal_bond` of the DAO policy. */
+  readonly proposalBond?: string;
+  /** Balance of each contract account; it pays for the wasm storage. */
+  readonly contractBalance?: string;
+  /** Balance of each working-group account; it only pays gas. */
+  readonly groupBalance?: string;
+}
+
+export interface ArgsFile {
+  readonly path: string;
+  readonly content: string;
 }
 
 export interface PlannedCommand {
   readonly stage: string;
   readonly contract: string;
   readonly method: string;
-  /** JSON text passed to `json-args`. */
+  /** JSON text of the call arguments, empty for non-call commands. */
   readonly args: string;
   readonly signer: string;
   readonly text: string;
+  readonly argsFile: ArgsFile | null;
 }
 
 export interface TestnetPlan {
@@ -84,6 +99,12 @@ export function planTestnet(fixtureJson: string, options: TestnetOptions): Testn
   const result = quote(periodId, obligations);
 
   const commands: PlannedCommand[] = [];
+  let counter = 0;
+  const nextArgsFile = (method: string, json: string): ArgsFile => {
+    counter += 1;
+    return { path: `${ARGS_DIR}/${String(counter).padStart(2, "0")}-${method}.json`, content: json };
+  };
+
   const call = (
     stage: string,
     contract: string,
@@ -92,64 +113,76 @@ export function planTestnet(fixtureJson: string, options: TestnetOptions): Testn
     signer: string,
     gas: string,
     deposit: string,
-    rawArgs?: string,
   ): void => {
-    const json = rawArgs ?? JSON.stringify(args);
-    const argsText = rawArgs === undefined ? shq(json) : rawArgs;
+    const json = JSON.stringify(args);
+    const file = nextArgsFile(method, json);
     commands.push({
       stage,
       contract,
       method,
       args: json,
       signer,
+      argsFile: file,
       text:
-        `near contract call-function as-transaction ${contract} ${method} json-args ${argsText} ` +
+        `near contract call-function as-transaction ${contract} ${method} file-args ${file.path} ` +
         `prepaid-gas '${gas}' attached-deposit '${deposit}' sign-as ${signer} ` +
         `network-config testnet sign-with-keychain send`,
     });
   };
 
+  const deploy = (
+    stage: string,
+    contract: string,
+    wasm: string,
+    initArgs: unknown,
+    signer: string,
+  ): void => {
+    const json = JSON.stringify(initArgs);
+    const file = nextArgsFile(`init-${contract.split(".")[0]}`, json);
+    commands.push({
+      stage,
+      contract,
+      method: "deploy",
+      args: json,
+      signer,
+      argsFile: file,
+      text:
+        `near contract deploy ${contract} use-file ${wasm} with-init-call init file-args ${file.path} ` +
+        `prepaid-gas '30 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-keychain send`,
+    });
+  };
+
   const funded = `${options.prefix}.testnet`;
+  const contractBalance = options.contractBalance ?? "8 NEAR";
+  const groupBalance = options.groupBalance ?? "0.3 NEAR";
   for (const account of [registry, token, ...accounts]) {
+    const balance = account === registry || account === token ? contractBalance : groupBalance;
     commands.push({
       stage: "accounts",
       contract: account,
       method: "create-account",
       args: "",
       signer: funded,
+      argsFile: null,
       text:
-        `near account create-account fund-myself ${account} '${account === registry || account === token ? "5" : "1"} NEAR' ` +
+        `near account create-account fund-myself ${account} '${balance}' ` +
         `autogenerate-new-keypair save-to-keychain sign-as ${funded} network-config testnet sign-with-keychain send`,
     });
   }
 
-  commands.push({
-    stage: "token",
-    contract: token,
-    method: "deploy",
-    args: "",
-    signer: options.owner,
-    text:
-      `near contract deploy ${token} use-file build/ledger-token.wasm with-init-call init json-args ` +
-      `${shq(JSON.stringify({ owner: options.owner, name: "Settlement Ledger Token", symbol: "SLT", decimals: fixture.decimals }))} ` +
-      `prepaid-gas '30 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-keychain send`,
-  });
+  deploy(
+    "token",
+    token,
+    "build/ledger-token.wasm",
+    { owner: options.owner, name: "Settlement Ledger Token", symbol: "SLT", decimals: fixture.decimals },
+    token,
+  );
   for (const account of [options.dao, ...accounts]) {
     call("token", token, "storage_deposit", { account_id: account }, options.owner, "30 Tgas", STORAGE_DEPOSIT);
   }
   call("token", token, "mint", { account_id: options.dao, amount: MINT_AMOUNT }, options.owner, "30 Tgas", "0 NEAR");
 
-  commands.push({
-    stage: "registry",
-    contract: registry,
-    method: "deploy",
-    args: "",
-    signer: options.owner,
-    text:
-      `near contract deploy ${registry} use-file build/registry.wasm with-init-call init json-args ` +
-      `${shq(JSON.stringify({ owner: options.owner }))} ` +
-      `prepaid-gas '30 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-keychain send`,
-  });
+  deploy("registry", registry, "build/registry.wasm", { owner: options.owner }, registry);
   call("registry", registry, "create_period", { period_id: periodId, members: accounts }, options.owner, "100 Tgas", "0 NEAR");
   for (const o of obligations) {
     call(
@@ -169,16 +202,18 @@ export function planTestnet(fixtureJson: string, options: TestnetOptions): Testn
 
   const proposalId = options.proposalId ?? "<PROPOSAL_ID>";
   const txHash = options.txHash ?? "<EXECUTION_TX_HASH>";
-  call(
-    "proposal",
-    options.dao,
-    "add_proposal",
-    undefined,
-    options.owner,
-    "100 Tgas",
-    "1 NEAR",
-    '"$(cat out/add-proposal.json)"',
-  );
+  commands.push({
+    stage: "proposal",
+    contract: options.dao,
+    method: "add_proposal",
+    args: "",
+    signer: options.owner,
+    argsFile: null,
+    text:
+      `near contract call-function as-transaction ${options.dao} add_proposal file-args out/add-proposal.json ` +
+      `prepaid-gas '100 Tgas' attached-deposit '${options.proposalBond ?? "1 NEAR"}' sign-as ${options.owner} ` +
+      `network-config testnet sign-with-keychain send`,
+  });
   call("proposal", options.dao, "act_proposal", { id: proposalIdValue(proposalId), action: "VoteApprove" }, options.owner, "300 Tgas", "0 NEAR");
   call(
     "settled",
@@ -216,7 +251,6 @@ export function planTestnet(fixtureJson: string, options: TestnetOptions): Testn
   };
 }
 
-/** Quoted placeholder stays a string so the JSON remains valid before the id is known. */
 function proposalIdValue(id: string): number | string {
   return /^[0-9]+$/.test(id) ? Number(id) : id;
 }
@@ -228,10 +262,3 @@ export function validatePrefix(prefix: string): void {
     );
   }
 }
-
-function shq(value: string): string {
-  return `'${value.replaceAll("'", `'\\''`)}'`;
-}
-
-export { FIXTURE_TOKEN };
-
