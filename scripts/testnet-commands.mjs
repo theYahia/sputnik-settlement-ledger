@@ -6,7 +6,7 @@ import path from "node:path";
 import { planTestnet } from "../src/testnet/commands.ts";
 
 const USAGE = `Usage: node scripts/testnet-commands.mjs --prefix <p> --owner <account> --dao <account>
-         [--fixture fixtures/workgroups.json] [--out-dir out] [--proposal-id <n>] [--tx <hash>] [--bond "1 NEAR"]
+         [--fixture fixtures/workgroups.json] [--out-dir out] [--proposal-id <n>] [--tx <hash>] [--bond "1 NEAR"] [--commands-out out/commands.txt]
 
 Writes <out-dir>/workgroups.<prefix>.json (fixture renamed to your accounts, ids as the
 registry assigns them) and prints the commands in runbook order.
@@ -63,7 +63,13 @@ try {
     }
     lines.push(command.text);
   }
-  process.stdout.write(`${lines.join("\n")}\n`);
+  const text = `${lines.join("\n")}\n`;
+  if (args["commands-out"] === undefined) {
+    process.stdout.write(text);
+  } else {
+    writeFileSync(args["commands-out"], text, "utf8");
+    process.stdout.write(`${lines.slice(0, 4).join("\n")}\ncommands written to ${args["commands-out"]}\n`);
+  }
 } catch (error) {
   process.stderr.write(`error: ${error instanceof Error ? error.message : String(error)}\n`);
   process.exit(1);

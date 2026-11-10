@@ -33,7 +33,14 @@ if (file === undefined || stage === undefined) {
   process.exit(2);
 }
 
-const lines = readFileSync(file, "utf8").split(/\r?\n/);
+function readText(path) {
+  const buf = readFileSync(path);
+  if (buf[0] === 0xff && buf[1] === 0xfe) return buf.subarray(2).toString("utf16le");
+  if (buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) return buf.subarray(3).toString("utf8");
+  return buf.toString("utf8");
+}
+
+const lines = readText(file).split(/\r?\n/);
 let active = false;
 let count = 0;
 for (const line of lines) {
